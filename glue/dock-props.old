@@ -1,0 +1,6 @@
+  property var shell: null
+  property var manifest: null
+
+  readonly property var appLibrary: shell ? shell.appLibrary : null
+  readonly property var dockConfig: shell && shell.shellConfig && shell.shellConfig.dock ? shell.shellConfig.dock : ({})
+  readonly property var defaultDockConfig: shell && shell.defaultsConfig && shell.defaultsConfig.dock ? shell.defaultsConfig.dock : ({})

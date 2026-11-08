@@ -1,0 +1,29 @@
+  onDockConfigChanged: pendingPins = null
+
+  function dockFromConfigText(raw) {
+    try {
+      var parsed = JSON.parse(String(raw || ""))
+      if (parsed && typeof parsed.dock === "object" && parsed.dock) return parsed.dock
+    } catch (e) {}
+    return ({})
+  }
+
+  FileView {
+    path: Quickshell.env("HOME") + "/.config/omarchy/shell.json"
+    watchChanges: true
+    printErrors: false
+    onLoaded: root.loadedDockConfig = root.dockFromConfigText(text())
+    onFileChanged: reload()
+  }
+
+  FileView {
+    id: defaultDockFile
+    path: root.omarchyPath ? root.omarchyPath + "/config/omarchy/shell.json" : ""
+    watchChanges: true
+    printErrors: false
+    onLoaded: root.loadedDefaultDockConfig = root.dockFromConfigText(text())
+    onFileChanged: reload()
+  }
+
+  onOmarchyPathChanged: if (root.omarchyPath) defaultDockFile.reload()
+

@@ -1,0 +1,5 @@
+  function openApps() {
+    if (appGrid.opened) appGrid.close()
+    Util.execArgv(["omarchy-shell", "shell", "toggle", "dtpietrzak.applist", "{}"])
+  }
+

@@ -1,0 +1,4 @@
+  function openApps() {
+    appGrid.open()
+  }
+

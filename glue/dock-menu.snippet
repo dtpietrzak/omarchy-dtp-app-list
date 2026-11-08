@@ -1,0 +1,13 @@
+import QtQuick
+
+// Present so the cloned dock may claim the menu kind. That is what gives the
+// service the app library, which the dock uses to draw icons and launch pins.
+// Nothing summons this entry.
+Item {
+  property var shell: null
+  property var manifest: null
+  property string omarchyPath: ""
+
+  function open(payload) {}
+  function close() {}
+}

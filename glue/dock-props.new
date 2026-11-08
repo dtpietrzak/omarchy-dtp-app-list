@@ -1,0 +1,16 @@
+  property var shell: null
+  property var manifest: null
+  property string omarchyPath: ""
+
+  // A cloned dock is a third-party service, so the host shell object does not
+  // carry shell.json. Read the same files the dock commands write.
+  property var loadedDockConfig: ({})
+  property var loadedDefaultDockConfig: ({})
+
+  readonly property var appLibrary: shell ? shell.appLibrary : null
+  readonly property var dockConfig: shell && shell.shellConfig && shell.shellConfig.dock
+    ? shell.shellConfig.dock
+    : loadedDockConfig
+  readonly property var defaultDockConfig: shell && shell.defaultsConfig && shell.defaultsConfig.dock
+    ? shell.defaultsConfig.dock
+    : loadedDefaultDockConfig

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "dtpietrzak.applist",
+  "name": "App list",
+  "version": "1.0.0",
+  "author": "dtpietrzak",
+  "description": "List-view application launcher with search",
+  "kinds": ["menu"],
+  "keepLoaded": true,
+  "entryPoints": {
+    "menu": "AppList.qml"
+  }
+}

@@ -1,0 +1,52 @@
+    // Drawn rather than taken from a font, so its edges stay crisp on the
+    // transparent dock and it fills its slot like the app icons beside it.
+    Item {
+      x: window.iconInset
+      y: window.iconInset
+      width: window.iconSize
+      height: window.iconSize
+      scale: appsSlot.hovered ? 1.15 : 1
+      transformOrigin: window.popOrigin
+
+      Behavior on scale { NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic } }
+
+      Column {
+        anchors.centerIn: parent
+        spacing: Math.round(window.iconSize * 0.16)
+
+        Repeater {
+          model: 3
+
+          delegate: Item {
+            readonly property int dot: Math.max(4, Math.round(window.iconSize * 0.18))
+            readonly property int gap: Math.max(3, Math.round(window.iconSize * 0.1))
+            readonly property int lineHeight: Math.max(2, Math.round(window.iconSize * 0.1))
+            readonly property int lineWidth: Math.round(window.iconSize * 0.42)
+
+            width: dot + gap + lineWidth
+            height: dot
+
+            Rectangle {
+              anchors.left: parent.left
+              anchors.verticalCenter: parent.verticalCenter
+              width: parent.dot
+              height: parent.dot
+              radius: Math.max(1, Math.round(width * 0.45))
+              color: Commons.Color.bar.text
+            }
+
+            Rectangle {
+              anchors.left: parent.left
+              anchors.leftMargin: parent.dot + parent.gap
+              anchors.verticalCenter: parent.verticalCenter
+              width: parent.lineWidth
+              height: parent.lineHeight
+              radius: height / 2
+              color: Commons.Color.bar.text
+            }
+          }
+        }
+      }
+    }
+  }
+
