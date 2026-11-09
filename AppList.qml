@@ -36,14 +36,18 @@ Item {
   readonly property int iconSize: Style.space(16)
   readonly property int rowHeight: Math.max(Style.spacing.popupRowHeight, Style.font.body + Style.space(8))
   readonly property int visibleRows: 12
-  // Hug the matches. A one-result search should not sit in a twelve-row card.
-  readonly property int shownRows: root.apps.length === 0 ? 3 : Math.min(root.apps.length, root.visibleRows)
-  readonly property int idealListHeight: rowHeight * shownRows
   readonly property int contentMargin: Style.spacing.panelPadding
   readonly property int borderWidth: Math.max(1, Style.space(2))
-  readonly property int cardWidth: Math.min(Style.space(440), Math.max(Style.space(280), panel.width - Style.space(48)))
-  readonly property int idealCardHeight: contentMargin * 2 + borderWidth * 2 + Math.max(searchField.implicitHeight, Style.space(34)) + Style.spacing.md + idealListHeight
-  readonly property int cardHeight: panel.height > Style.space(80) ? Math.min(idealCardHeight, panel.height - Style.space(48)) : idealCardHeight
+
+  // Same card as the Omarchy menu's start page: its width, and the height of
+  // its rows (menuRows of them, folded at 70% of the screen the way it does).
+  // The list scrolls inside the card, so a short search keeps the same size.
+  readonly property int menuRows: 10
+  readonly property int menuRowHeight: Math.max(Style.space(50), Style.font.body + Style.spacing.rowPaddingX * 2)
+  readonly property int menuHeaderHeight: Math.max(Style.space(34), Style.font.title + Style.spacing.controlPaddingY * 2)
+  readonly property int menuRowsHeight: Math.min(menuRows * menuRowHeight + (menuRows - 1) * Style.spacing.xs, Math.round(panel.height * 0.7))
+  readonly property int cardWidth: Math.min(Style.space(300), panel.width - Style.gapsOut * 2)
+  readonly property int cardHeight: Math.min(contentMargin * 2 + menuHeaderHeight + Style.spacing.md + menuRowsHeight, panel.height - Style.gapsOut * 2)
 
   readonly property bool menuPinned: {
     var id = AppList.normalizeDesktopId(root.menuEntry && root.menuEntry.id)
