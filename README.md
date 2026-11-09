@@ -2,7 +2,7 @@
 
 List launcher for Omarchy. One row per app, a search field on the top line, and the theme's right-click menu.
 
-![The list launcher open beside the menu button](screenshots/app-list.png)
+![Searching the list launcher beside the menu button](screenshots/app-list.gif)
 
 The shell plugin id is `dtpietrzak.applist`. The git repository name is `omarchy-dtp-app-list`.
 
