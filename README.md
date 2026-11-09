@@ -6,12 +6,14 @@ The shell plugin id is `dtpietrzak.applist`. The git repository name is `omarchy
 
 ## Install
 
-From a git URL, Omarchy clones this repo into the plugin directory. That does not wire up the key, the menu, or the dock button, so run the script after it:
+From GitHub, Omarchy clones this repo into the plugin directory. That does not wire up the key, the menu, or the dock button, so run the script after it:
 
 ```bash
-omarchy plugin add <git-url> --enable
+omarchy plugin add https://github.com/dtpietrzak/omarchy-dtp-app-list.git --enable
 ~/.config/omarchy/plugins/dtpietrzak.applist/install.sh
 ```
+
+`omarchy-dtp-install` runs that script for you, along with the other features.
 
 From a local checkout:
 
