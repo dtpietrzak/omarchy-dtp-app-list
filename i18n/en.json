@@ -1,7 +1,7 @@
 {
   "search.placeholder": "Search apps…",
   "search.shortcut": "Alt+Super+Space",
-  "list.empty": "No apps match “%1”",
+  "list.empty": "No apps matching \"%1\"",
   "list.emptyAll": "No apps",
   "menu.open": "Open",
   "menu.keepInDock": "Keep in Dock",

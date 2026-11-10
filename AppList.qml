@@ -46,7 +46,12 @@ Item {
   readonly property int fieldHeight: iconSize + Math.round(edge * 2.5)
   readonly property int gutter: Style.space(10)
   readonly property int cardWidth: Math.min(Style.space(300), panel.width - Style.gapsOut * 2)
-  readonly property int cardHeight: Math.min(fieldHeight + rowHeight * visibleRows + Math.round(edge / 2), panel.height - corner.barThickness - Style.gapsOut)
+  // The card fits what it shows, as the workspace panel's search does: one row
+  // per match up to a full list, and a single line of room for the message when
+  // nothing matches.
+  readonly property int messageHeight: rowHeight + edge
+  readonly property int listHeight: apps.length > 0 ? rowHeight * Math.min(apps.length, visibleRows) : messageHeight
+  readonly property int cardHeight: Math.min(fieldHeight + listHeight + Math.round(edge / 2), panel.height - corner.barThickness - Style.gapsOut)
 
   // The card background follows the bar (opaque, glassy or clear), as workspace
   // control's cards do. A clear bar still gets a backing so text reads.
@@ -277,6 +282,7 @@ Item {
       id: card
       width: root.cardWidth
       height: root.cardHeight
+      Behavior on height { NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic } }
       // Against the bar with no gap: square on that side, rounded on the others.
       x: corner.position === "left" ? corner.barThickness
         : corner.position === "right" ? panel.width - width - corner.barThickness
@@ -499,7 +505,7 @@ Item {
       Text {
         textFormat: Text.PlainText
         anchors.horizontalCenter: parent.horizontalCenter
-        y: root.flipped ? parent.height - fieldBox.height - height - Style.space(24) : fieldBox.height + Style.space(24)
+        y: (root.flipped ? Math.round(root.edge / 2) : fieldBox.height) + (root.messageHeight - height) / 2
         width: parent.width - Style.space(24)
         horizontalAlignment: Text.AlignHCenter
         visible: root.apps.length === 0
