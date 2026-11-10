@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls as Controls
 import QtQuick.Window
 import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Wayland
 import qs.Commons
@@ -33,21 +34,27 @@ Item {
   // cannot track, so this forces icons to resolve again after a refresh.
   property int iconRevision: 0
 
-  readonly property int iconSize: Style.space(16)
-  readonly property int rowHeight: Math.max(Style.spacing.popupRowHeight, Style.font.body + Style.space(8))
+  // Sized like the app list in workspace control: an icon a half larger than
+  // the text, rows one padding taller, and a search line with room around it.
+  readonly property int edge: Style.spacing.md
+  readonly property int iconSize: Math.round(Style.font.body * 1.5)
+  readonly property int rowHeight: iconSize + edge
   readonly property int visibleRows: 12
-  readonly property int contentMargin: Style.spacing.panelPadding
-  readonly property int borderWidth: Math.max(1, Style.space(2))
-
-  // Same card as the Omarchy menu's start page: its width, and the height of
-  // its rows (menuRows of them, folded at 70% of the screen the way it does).
-  // The list scrolls inside the card, so a short search keeps the same size.
-  readonly property int menuRows: 10
-  readonly property int menuRowHeight: Math.max(Style.space(50), Style.font.body + Style.spacing.rowPaddingX * 2)
-  readonly property int menuHeaderHeight: Math.max(Style.space(34), Style.font.title + Style.spacing.controlPaddingY * 2)
-  readonly property int menuRowsHeight: Math.min(menuRows * menuRowHeight + (menuRows - 1) * Style.spacing.xs, Math.round(panel.height * 0.7))
+  readonly property int fieldHeight: iconSize + Math.round(edge * 2.5)
+  readonly property int gutter: Style.space(10)
   readonly property int cardWidth: Math.min(Style.space(300), panel.width - Style.gapsOut * 2)
-  readonly property int cardHeight: Math.min(contentMargin * 2 + menuHeaderHeight + Style.spacing.md + menuRowsHeight, panel.height - Style.gapsOut * 2)
+  readonly property int cardHeight: Math.min(fieldHeight + rowHeight * visibleRows + Math.round(edge / 2), panel.height - corner.barThickness - Style.gapsOut)
+
+  // The card background follows the bar (opaque, glassy or clear), as workspace
+  // control's cards do. A clear bar still gets a backing so text reads.
+  readonly property var barConfig: root.shell ? root.shell.barConfig : null
+  readonly property color cardColor: {
+    var bar = root.barConfig || {}
+    var look = bar.background || (bar.transparent === true ? "none" : "opaque")
+    var base = Commons.Color.bar.background
+    if (look === "glassy") return Qt.rgba(base.r, base.g, base.b, Math.min(base.a, 0.35))
+    return base
+  }
 
   readonly property bool menuPinned: {
     var id = AppList.normalizeDesktopId(root.menuEntry && root.menuEntry.id)
@@ -211,7 +218,20 @@ Item {
     event.accepted = true
   }
 
-  Component.onCompleted: root.viewReady = true
+  // The blur rule for a glassy bar, which Hyprland forgets on every reload.
+  function setUpHyprland() {
+    var path = decodeURIComponent(String(Qt.resolvedUrl("hypr/applist.lua")).replace(/^file:\/\//, ""))
+    Hyprland.dispatch('(function() dofile(' + JSON.stringify(path) + ') end)')
+  }
+
+  Component.onCompleted: { root.viewReady = true; root.setUpHyprland() }
+
+  Connections {
+    target: Hyprland
+    function onRawEvent(event) {
+      if (event.name === "configreloaded") root.setUpHyprland()
+    }
+  }
 
   Connections {
     target: root.appLibrary
@@ -232,34 +252,42 @@ Item {
     onFileChanged: reload()
   }
 
+  StartCorner { id: corner }
+
   OverlayWindow {
     id: panel
     shown: root.opened
     WlrLayershell.namespace: "dtpietrzak-applist"
 
-    Rectangle {
+    // No dim behind the card. A click outside it still closes the list.
+    MouseArea {
       anchors.fill: parent
-      color: Commons.Color.menu.scrim
-
-      MouseArea {
-        anchors.fill: parent
-        acceptedButtons: Qt.LeftButton | Qt.RightButton
-        onClicked: {
-          if (root.menuEntry) root.menuEntry = null
-          else if (!root.uninstallEntry) root.dismiss()
-        }
+      acceptedButtons: Qt.LeftButton | Qt.RightButton
+      onClicked: {
+        if (root.menuEntry) root.menuEntry = null
+        else if (!root.uninstallEntry) root.dismiss()
       }
     }
 
-    BorderSurface {
+    Rectangle {
       id: card
       width: root.cardWidth
       height: root.cardHeight
-      anchors.centerIn: parent
+      // Against the bar with no gap: square on that side, rounded on the others.
+      x: corner.position === "left" ? corner.barThickness
+        : corner.position === "right" ? panel.width - width - corner.barThickness
+        // Under the line between the menu button and the app list button: one
+        // bar slot past the menu button, and a little more.
+        : corner.cardX(panel.width, width) + (corner.vertical ? 0 : (corner.atRight ? -1 : 1) * (corner.barThickness + 3))
+      y: corner.position === "top" ? corner.barThickness
+        : corner.position === "bottom" ? Math.max(0, panel.height - height - corner.barThickness)
+        : corner.cardY(panel.height, height)
       radius: Style.cornerRadius
-      color: Commons.Color.menu.background
-      borderSpec: Border.surfaceSpec("menu", "border", Commons.Color.menu.border, root.borderWidth)
-      padding: root.contentMargin
+      topLeftRadius: corner.position === "top" || corner.position === "left" ? 0 : Style.cornerRadius
+      topRightRadius: corner.position === "top" || corner.position === "right" ? 0 : Style.cornerRadius
+      bottomLeftRadius: corner.position === "bottom" || corner.position === "left" ? 0 : Style.cornerRadius
+      bottomRightRadius: corner.position === "bottom" || corner.position === "right" ? 0 : Style.cornerRadius
+      color: root.cardColor
 
       MouseArea {
         anchors.fill: parent
@@ -276,12 +304,12 @@ Item {
         z: 10
         message: AppList.format(strings.t("uninstall.confirm"), root.uninstallLabel)
         confirmText: strings.t("uninstall.action")
-        background: Commons.Color.menu.background
-        foreground: Commons.Color.menu.text
-        scrim: Commons.Color.menu.scrim
-        selectedBackground: Commons.Color.menu.selectedBackground
-        selectedText: Commons.Color.menu.selectedText
-        fontFamily: Style.font.menuFamily
+        background: Commons.Color.bar.background
+        foreground: Commons.Color.foreground
+        scrim: "transparent"
+        selectedBackground: Style.hoverFill
+        selectedText: Commons.Color.foreground
+        fontFamily: Style.font.family
         cornerRadius: Style.cornerRadius
         onCanceled: {
           root.uninstallEntry = null
@@ -297,135 +325,186 @@ Item {
         }
       }
 
-      Column {
-        anchors.fill: parent
-        anchors.topMargin: card.contentTopInset
-        anchors.rightMargin: card.contentRightInset
-        anchors.bottomMargin: card.contentBottomInset
-        anchors.leftMargin: card.contentLeftInset
-        spacing: Style.spacing.md
+      Item {
+        id: fieldBox
+        width: parent.width
+        height: root.fieldHeight
 
-        TextField {
+        TextInput {
           id: searchField
-          width: parent.width
+          anchors.left: parent.left
+          anchors.right: parent.right
+          anchors.leftMargin: root.edge + root.edge / 2
+          anchors.rightMargin: root.edge + root.edge / 2
+          // Half an edge of card padding above, a full edge below.
+          anchors.verticalCenter: parent.verticalCenter
+          anchors.verticalCenterOffset: -root.edge / 4
           focus: true
+          clip: true
+          selectByMouse: true
           readOnly: !!root.menuEntry || !!root.uninstallEntry
-          placeholderText: strings.t("search.placeholder")
-          font.family: Style.font.menuFamily
+          color: Commons.Color.foreground
+          selectionColor: Style.selectionFillFor(Commons.Color.foreground, Commons.Color.accent)
+          selectedTextColor: Commons.Color.foreground
+          font.family: Style.font.family
           font.pixelSize: Style.font.body
-          foreground: Commons.Color.menu.text
           onTextChanged: if (text !== root.filterText) root.setFilter(text)
           Keys.priority: Keys.BeforeItem
           Keys.onPressed: function(event) { root.handleSearchKey(event) }
         }
 
-        Item {
-          width: parent.width
-          height: Math.max(0, parent.height - searchField.height - parent.spacing)
+        Text {
+          anchors.left: searchField.left
+          anchors.right: searchField.right
+          anchors.verticalCenter: searchField.verticalCenter
+          visible: searchField.text.length === 0 && searchField.preeditText.length === 0
+          textFormat: Text.PlainText
+          text: strings.t("search.placeholder")
+          color: Commons.Color.foreground
+          opacity: 0.45
+          font.family: searchField.font.family
+          font.pixelSize: searchField.font.pixelSize
+          elide: Text.ElideRight
+        }
 
-          ListView {
-            id: list
+        // The shortcut that opens this list, while the field is empty.
+        Text {
+          anchors.right: parent.right
+          anchors.rightMargin: root.edge + root.edge / 2
+          anchors.verticalCenter: searchField.verticalCenter
+          visible: searchField.text.length === 0 && searchField.preeditText.length === 0
+          textFormat: Text.PlainText
+          text: strings.t("search.shortcut")
+          color: Commons.Color.foreground
+          opacity: 0.3
+          font.family: searchField.font.family
+          font.pixelSize: searchField.font.pixelSize
+        }
+      }
+
+      ListView {
+        id: list
+        y: fieldBox.height
+        x: Math.round(root.edge / 2)
+        width: parent.width - root.edge - root.gutter
+        height: parent.height - y - Math.round(root.edge / 2)
+        model: root.apps
+        clip: true
+        spacing: 0
+        boundsBehavior: Flickable.StopAtBounds
+        cacheBuffer: root.rowHeight * 8
+        // The flickable's own wheel step is a few pixels, under one row.
+        maximumFlickVelocity: 8000
+        Controls.ScrollBar.vertical: Controls.ScrollBar { policy: Controls.ScrollBar.AsNeeded }
+
+        WheelHandler {
+          acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+          onWheel: function(event) {
+            var pixels = event.pixelDelta.y
+            var angle = event.angleDelta.y
+            // A mouse notch is 120 angle units. Trackpads send pixel movement
+            // with a smaller angle, so those keep a scaled pixel step.
+            var delta = Math.abs(angle) >= 120
+              ? angle / 120 * root.rowHeight * 3
+              : (pixels !== 0 ? pixels * 2 : angle / 120 * root.rowHeight * 3)
+            if (delta === 0) return
+            var bottom = list.originY + Math.max(0, list.contentHeight - list.height)
+            list.contentY = Math.max(list.originY, Math.min(bottom, list.contentY - delta))
+            event.accepted = true
+          }
+        }
+
+        delegate: Item {
+          id: row
+          required property int index
+          required property var modelData
+          readonly property bool selected: index === root.selectedIndex
+
+          width: list.width
+          height: root.rowHeight
+
+          Rectangle {
             anchors.fill: parent
-            model: root.apps
-            clip: true
-            spacing: 0
-            boundsBehavior: Flickable.StopAtBounds
-            cacheBuffer: root.rowHeight * 8
-            // The flickable's own wheel step is a few pixels, under one row.
-            maximumFlickVelocity: 8000
-            Controls.ScrollBar.vertical: Controls.ScrollBar { policy: Controls.ScrollBar.AsNeeded }
+            radius: Style.cornerRadius
+            color: row.selected ? Style.hoverFill : "transparent"
+            border.width: row.selected ? 1 : 0
+            border.color: Commons.Color.accent
+          }
 
-            WheelHandler {
-              acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-              onWheel: function(event) {
-                var pixels = event.pixelDelta.y
-                var angle = event.angleDelta.y
-                // A mouse notch is 120 angle units. Trackpads send pixel movement
-                // with a smaller angle, so those keep a scaled pixel step.
-                var delta = Math.abs(angle) >= 120
-                  ? angle / 120 * root.rowHeight * 6
-                  : (pixels !== 0 ? pixels * 3 : angle / 120 * root.rowHeight * 6)
-                if (delta === 0) return
-                var bottom = list.originY + Math.max(0, list.contentHeight - list.height)
-                list.contentY = Math.max(list.originY, Math.min(bottom, list.contentY - delta))
-                event.accepted = true
-              }
-            }
+          // A thin line between this row and the next.
+          Rectangle {
+            y: Math.round(parent.height - height / 2)
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: root.edge
+            anchors.rightMargin: root.edge
+            height: 1 / Math.max(1, Screen.devicePixelRatio)
+            visible: row.index < root.apps.length - 1 && !row.selected && row.index + 1 !== root.selectedIndex
+            color: Qt.alpha(Commons.Color.foreground, 0.15)
+          }
 
-            delegate: Rectangle {
-              id: row
-              required property int index
-              required property var modelData
-              readonly property bool selected: index === root.selectedIndex
-
-              width: list.width
-              height: root.rowHeight
-              radius: Style.cornerRadius
-              color: selected ? Commons.Color.menu.selectedBackground : "transparent"
-
-              Image {
-                id: icon
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.left: parent.left
-                anchors.leftMargin: Style.spacing.controlPaddingX
-                width: root.iconSize
-                height: root.iconSize
-                sourceSize: Qt.size(width * Screen.devicePixelRatio, height * Screen.devicePixelRatio)
-                fillMode: Image.PreserveAspectFit
-                asynchronous: true
-                smooth: true
-                mipmap: true
-                source: (root.iconRevision >= 0 && root.appLibrary) ? root.appLibrary.iconSource(row.modelData.icon) : ""
-              }
-
-              Text {
-                textFormat: Text.PlainText
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.left: icon.right
-                anchors.leftMargin: Style.space(8)
-                anchors.right: parent.right
-                anchors.rightMargin: Style.spacing.controlPaddingX
-                text: root.appLibrary ? root.appLibrary.entryName(row.modelData) : ""
-                color: row.selected ? Commons.Color.menu.selectedText : Commons.Color.menu.text
-                font.family: Style.font.menuFamily
-                font.pixelSize: Style.font.body
-                elide: Text.ElideRight
-              }
-
-              MouseArea {
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                acceptedButtons: Qt.LeftButton | Qt.RightButton
-                onContainsMouseChanged: if (containsMouse && !root.menuEntry && !root.uninstallEntry) root.selectedIndex = row.index
-                onClicked: function(event) {
-                  if (event.button === Qt.RightButton) {
-                    root.openMenu(row.modelData, row.index, row.mapToItem(panel.contentItem, event.x, event.y))
-                    return
-                  }
-                  root.menuEntry = null
-                  root.launch(row.index)
-                }
-              }
-            }
+          Image {
+            id: icon
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.left: parent.left
+            anchors.leftMargin: root.edge
+            width: root.iconSize
+            height: root.iconSize
+            sourceSize: Qt.size(width * Screen.devicePixelRatio, height * Screen.devicePixelRatio)
+            fillMode: Image.PreserveAspectFit
+            asynchronous: true
+            smooth: true
+            mipmap: true
+            source: (root.iconRevision >= 0 && root.appLibrary) ? root.appLibrary.iconSource(row.modelData.icon) : ""
           }
 
           Text {
             textFormat: Text.PlainText
-            anchors.centerIn: parent
-            width: parent.width - Style.space(24)
-            horizontalAlignment: Text.AlignHCenter
-            visible: root.apps.length === 0
-            text: root.filterText
-              ? AppList.format(strings.t("list.empty"), AppList.plainLabel(root.filterText, 80))
-              : strings.t("list.emptyAll")
-            color: Commons.Color.menu.text
-            opacity: 0.7
-            font.family: Style.font.menuFamily
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.left: icon.right
+            anchors.leftMargin: root.edge
+            anchors.right: parent.right
+            anchors.rightMargin: root.edge
+            text: root.appLibrary ? root.appLibrary.entryName(row.modelData) : ""
+            color: Commons.Color.foreground
+            font.family: Style.font.family
             font.pixelSize: Style.font.body
             elide: Text.ElideRight
           }
+
+          MouseArea {
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            onContainsMouseChanged: if (containsMouse && !root.menuEntry && !root.uninstallEntry) root.selectedIndex = row.index
+            onClicked: function(event) {
+              if (event.button === Qt.RightButton) {
+                root.openMenu(row.modelData, row.index, row.mapToItem(panel.contentItem, event.x, event.y))
+                return
+              }
+              root.menuEntry = null
+              root.launch(row.index)
+            }
+          }
         }
+      }
+
+      Text {
+        textFormat: Text.PlainText
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: fieldBox.height + Style.space(24)
+        width: parent.width - Style.space(24)
+        horizontalAlignment: Text.AlignHCenter
+        visible: root.apps.length === 0
+        text: root.filterText
+          ? AppList.format(strings.t("list.empty"), AppList.plainLabel(root.filterText, 80))
+          : strings.t("list.emptyAll")
+        color: Commons.Color.foreground
+        opacity: 0.7
+        font.family: Style.font.family
+        font.pixelSize: Style.font.body
+        elide: Text.ElideRight
       }
     }
 
@@ -440,8 +519,8 @@ Item {
         : Math.min(Math.max(Style.gapsOut, root.menuPoint.x), panel.width - width - Style.gapsOut)
       y: Math.min(Math.max(Style.gapsOut, root.menuPoint.y), panel.height - height - Style.gapsOut)
       radius: Style.cornerRadius
-      color: Commons.Color.popups.background
-      borderSpec: Border.surfaceSpec("popups", "border", Commons.Color.popups.border, Style.normalBorderWidth)
+      color: Commons.Color.bar.background
+      borderSpec: Border.none()
       padding: Style.spacing.sm
 
       MouseArea { anchors.fill: parent; onClicked: {} }
@@ -465,6 +544,8 @@ Item {
             height: Style.spacing.popupRowHeight
             radius: Style.cornerRadius
             color: menuRow.index === root.menuIndex ? Style.hoverFill : "transparent"
+            border.width: menuRow.index === root.menuIndex ? 1 : 0
+            border.color: Commons.Color.accent
 
             Text {
               id: menuLabel
@@ -473,7 +554,7 @@ Item {
               anchors.left: parent.left
               anchors.leftMargin: Style.spacing.controlPaddingX
               text: menuRow.modelData.label
-              color: Commons.Color.popups.text
+              color: Commons.Color.foreground
               font.family: Style.font.family
               font.pixelSize: Style.font.body
             }
