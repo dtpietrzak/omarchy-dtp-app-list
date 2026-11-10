@@ -24,6 +24,9 @@ Item {
   property bool viewReady: false
   property string filterText: ""
   property int selectedIndex: -1
+  // With the bar at the bottom the card is turned over: the search field sits
+  // at the bottom and the list grows up from it, first row nearest the field.
+  readonly property bool flipped: corner.position === "bottom"
   property var apps: []
   property var pinnedIds: ({})
   property var menuEntry: null
@@ -132,7 +135,8 @@ Item {
 
   function select(delta) {
     if (root.apps.length === 0) return
-    root.selectedIndex = AppList.moveIndex(root.selectedIndex, delta, root.apps.length)
+    // Up is toward the top of the card, which is higher in a flipped list.
+    root.selectedIndex = AppList.moveIndex(root.selectedIndex, root.flipped ? -delta : delta, root.apps.length)
     list.positionViewAtIndex(root.selectedIndex, ListView.Contain)
   }
 
@@ -327,6 +331,7 @@ Item {
 
       Item {
         id: fieldBox
+        y: root.flipped ? parent.height - height : 0
         width: parent.width
         height: root.fieldHeight
 
@@ -338,7 +343,7 @@ Item {
           anchors.rightMargin: root.edge + root.edge / 2
           // Half an edge of card padding above, a full edge below.
           anchors.verticalCenter: parent.verticalCenter
-          anchors.verticalCenterOffset: -root.edge / 4
+          anchors.verticalCenterOffset: root.flipped ? root.edge / 4 : -root.edge / 4
           focus: true
           clip: true
           selectByMouse: true
@@ -384,12 +389,13 @@ Item {
 
       ListView {
         id: list
-        y: fieldBox.height
+        y: root.flipped ? Math.round(root.edge / 2) : fieldBox.height
         x: Math.round(root.edge / 2)
         width: parent.width - root.edge - root.gutter
-        height: parent.height - y - Math.round(root.edge / 2)
+        height: parent.height - fieldBox.height - Math.round(root.edge / 2)
         model: root.apps
         clip: true
+        verticalLayoutDirection: root.flipped ? ListView.BottomToTop : ListView.TopToBottom
         spacing: 0
         boundsBehavior: Flickable.StopAtBounds
         cacheBuffer: root.rowHeight * 8
@@ -493,7 +499,7 @@ Item {
       Text {
         textFormat: Text.PlainText
         anchors.horizontalCenter: parent.horizontalCenter
-        y: fieldBox.height + Style.space(24)
+        y: root.flipped ? parent.height - fieldBox.height - height - Style.space(24) : fieldBox.height + Style.space(24)
         width: parent.width - Style.space(24)
         horizontalAlignment: Text.AlignHCenter
         visible: root.apps.length === 0
