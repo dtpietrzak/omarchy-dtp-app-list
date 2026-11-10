@@ -55,7 +55,7 @@ Item {
     var bar = root.barConfig || {}
     var look = bar.background || (bar.transparent === true ? "none" : "opaque")
     var base = Commons.Color.bar.background
-    if (look === "glassy") return Qt.rgba(base.r, base.g, base.b, Math.min(base.a, 0.35))
+    if (look === "glassy") return Qt.rgba(base.r, base.g, base.b, Math.min(base.a, Commons.Color.pickAlpha("dtp.glass-alpha", 0.35)))
     return base
   }
 
