@@ -4,6 +4,8 @@ List launcher for Omarchy. One row per app, a search field on the top line, and 
 
 ![Searching the list launcher beside the menu button](screenshots/app-list.gif)
 
+Each row has a star on the right. It is faded grey, white under the pointer, and gold once the app is a favorite; clicking it toggles the favorite. Favorites are shared with the DTP menu and shown on the bar by [omarchy-dtp-favorites](https://github.com/dtpietrzak/omarchy-dtp-favorites), through `~/.config/omarchy/favorites.json`. `Favorites.js`, `FavoritesStore.qml` and `Star.qml` are copies kept identical across those repos.
+
 The shell plugin id is `dtpietrzak.applist`. The git repository name is `omarchy-dtp-app-list`.
 
 ## Install

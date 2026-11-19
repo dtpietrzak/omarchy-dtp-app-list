@@ -9,6 +9,7 @@ import qs.Commons
 import qs.Commons as Commons
 import qs.Ui
 import "AppList.js" as AppList
+import "Favorites.js" as Favorites
 
 // Menu kind: the shell only injects appLibrary into menu plugins.
 Item {
@@ -120,6 +121,8 @@ Item {
     for (var i = 0; i < limit; i++) {
       if (rows[i] && rows[i].entry) next.push(rows[i].entry)
     }
+    // Favorites first: the first row sits beside the search field.
+    next = Favorites.favoritesFirst(next, function(entry) { return AppList.desktopId(entry.id) }, favorites.map)
     root.apps = next
     root.selectedIndex = resetSelection
       ? AppList.closestIndex(next.length)
@@ -262,6 +265,12 @@ Item {
   }
 
   StartCorner { id: corner }
+
+  // Shared with the favorites bar widget and the DTP menu.
+  FavoritesStore {
+    id: favorites
+    onAppsChanged: if (root.opened) root.rebuild(false)
+  }
 
   OverlayWindow {
     id: panel
@@ -475,7 +484,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: icon.right
             anchors.leftMargin: root.edge
-            anchors.right: parent.right
+            anchors.right: star.left
             anchors.rightMargin: root.edge
             text: root.appLibrary ? root.appLibrary.entryName(row.modelData) : ""
             color: Commons.Color.foreground
@@ -497,6 +506,21 @@ Item {
               }
               root.menuEntry = null
               root.launch(row.index)
+            }
+          }
+
+          // Above the row's mouse area, so a click here stars the app
+          // instead of opening it.
+          Star {
+            id: star
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.right: parent.right
+            anchors.rightMargin: root.edge
+            size: Math.round(root.iconSize * 0.7)
+            favorited: favorites.isFavorite(AppList.desktopId(row.modelData.id))
+            onToggled: {
+              root.menuEntry = null
+              favorites.toggle(AppList.desktopId(row.modelData.id))
             }
           }
         }
